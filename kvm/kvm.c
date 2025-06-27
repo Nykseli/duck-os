@@ -83,6 +83,8 @@ void vm_free(struct vm* vm)
     if (vm->vcpu_fd != -1) {
         close(vm->vcpu_fd);
     }
+
+    vm_init(vm);
 }
 
 int vm_create_error(struct vm* vm, const char* pmsg, const char* efmt, ...)
@@ -223,6 +225,39 @@ int read_executable(struct executable* exec, const char* filename)
     return 0;
 }
 
+int setup_real_mode(struct vm* vm, struct executable* exec)
+{
+    struct kvm_regs regs;
+    // make sure all registers are 0
+    memset(&regs, 0, sizeof(regs));
+    // bit 1 is assumed to be always set
+    regs.rflags = 2;
+    // bios booloader exists in 0x7C00 - 0x7DFF
+    regs.rip = 0x7c00;
+
+    if (ioctl(vm->vcpu_fd, KVM_SET_REGS, &regs) < 0) {
+        return kvm_error("KVM_SET_REGS", NULL);
+    }
+
+    struct kvm_sregs sregs;
+    if (ioctl(vm->vcpu_fd, KVM_GET_SREGS, &sregs) < 0) {
+        return kvm_error("KVM_GET_SREGS", NULL);
+    }
+
+    // Make sure cs register is 0 since we are not doing any far registers
+    // at the start of the boot
+    sregs.cs.selector = 0;
+    sregs.cs.base = 0;
+
+    if (ioctl(vm->vcpu_fd, KVM_SET_SREGS, &sregs) < 0) {
+        return kvm_error("KVM_SET_SREGS", NULL);
+    }
+
+    // load the executable to memory
+    memcpy(vm->shared_memory + 0x7c00, exec->data, exec->size);
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 2) {
@@ -232,20 +267,24 @@ int main(int argc, char** argv)
 
     int ret = 0;
     struct vm vm;
+    struct executable exec;
     vm_init(&vm);
+    executable_init(&exec);
 
     if ((ret = vm_create(&vm)) != 0) {
-        return ret;
+        goto main_end;
     }
 
-    struct executable exec;
-    executable_init(&exec);
     if ((ret = read_executable(&exec, argv[1])) != 0) {
-        vm_free(&vm);
-        return ret;
+        goto main_end;
     }
 
+    if ((ret = setup_real_mode(&vm, &exec)) != 0) {
+        goto main_end;
+    }
+
+main_end:
     vm_free(&vm);
     executable_free(&exec);
-    return 0;
+    return ret;
 }
