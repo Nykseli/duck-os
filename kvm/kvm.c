@@ -258,6 +258,28 @@ int setup_real_mode(struct vm* vm, struct executable* exec)
     return 0;
 }
 
+int run_vm(struct vm* vm)
+{
+    while (1) {
+        if (ioctl(vm->vcpu_fd, KVM_RUN, 0) < 0)
+            return kvm_error("KVM_RUN", NULL);
+
+        switch (vm->kvm_run->exit_reason) {
+        case KVM_EXIT_HLT:
+            printf("program halted. exiting...\n");
+            return 0;
+        case KVM_EXIT_IO:
+            printf("IO port: %x, data: %x\n", vm->kvm_run->io.port,
+                *(int*)((char*)(vm->kvm_run) + vm->kvm_run->io.data_offset));
+            break;
+        default:
+            return kvm_error(NULL, "Got expected KVM_EXIT_HLT (%d)\n", vm->kvm_run->exit_reason);
+        }
+    }
+
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 2) {
@@ -280,6 +302,10 @@ int main(int argc, char** argv)
     }
 
     if ((ret = setup_real_mode(&vm, &exec)) != 0) {
+        goto main_end;
+    }
+
+    if ((ret = run_vm(&vm)) != 0) {
         goto main_end;
     }
 
