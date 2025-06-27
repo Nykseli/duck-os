@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <fcntl.h>
 #include <linux/kvm.h>
 #include <stdarg.h>
@@ -10,6 +11,21 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+int kvm_error(const char* pmsg, const char* efmt, ...)
+{
+    if (efmt != NULL) {
+        va_list args;
+        va_start(args, efmt);
+        vfprintf(stderr, efmt, args);
+        va_end(args);
+    }
+
+    if (pmsg != NULL)
+        perror(pmsg);
+
+    return errno;
+}
 
 struct vm {
     /**
@@ -71,16 +87,11 @@ void vm_free(struct vm* vm)
 
 int vm_create_error(struct vm* vm, const char* pmsg, const char* efmt, ...)
 {
-    if (efmt != NULL) {
-        va_list args;
+    va_list args;
+    if (efmt != NULL)
         va_start(args, efmt);
-        vfprintf(stderr, efmt, args);
-        va_end(args);
-    }
-
-    if (pmsg != NULL)
-        perror(pmsg);
-
+    kvm_error(pmsg, efmt, args);
+    va_end(args);
     vm_free(vm);
     return 1;
 }
@@ -169,8 +180,56 @@ int vm_create(struct vm* vm)
     return 0;
 }
 
-int main()
+struct executable {
+    uint8_t* data;
+    size_t size;
+};
+
+void executable_init(struct executable* exec)
 {
+    exec->data = NULL;
+    exec->size = 0;
+}
+
+void executable_free(struct executable* exec)
+{
+    if (exec->data != NULL)
+        free(exec->data);
+    executable_init(exec);
+}
+
+int read_executable(struct executable* exec, const char* filename)
+{
+    int fd = open(filename, O_RDONLY);
+
+    if (fd < 0) {
+        return kvm_error("Cannot open file", "Cannot open file '%s'\n", filename);
+    }
+
+    struct stat st;
+    if (fstat(fd, &st)) {
+        return kvm_error("Cannot stat file.", "Cannot stat file '%s'\n", filename);
+    }
+
+    uint8_t* filedata = malloc(st.st_size);
+    if (read(fd, filedata, st.st_size) < 0) {
+        executable_free(exec);
+        return kvm_error("Cannot read file", "Cannot read file '%s'\n", filename);
+    }
+    close(fd);
+
+    exec->data = filedata;
+    exec->size = st.st_size;
+    return 0;
+}
+
+int main(int argc, char** argv)
+{
+    if (argc < 2) {
+        printf("Give executable as an argument\n");
+        return 1;
+    }
+
     int ret = 0;
     struct vm vm;
     vm_init(&vm);
@@ -179,6 +238,14 @@ int main()
         return ret;
     }
 
+    struct executable exec;
+    executable_init(&exec);
+    if ((ret = read_executable(&exec, argv[1])) != 0) {
+        vm_free(&vm);
+        return ret;
+    }
+
     vm_free(&vm);
+    executable_free(&exec);
     return 0;
 }
