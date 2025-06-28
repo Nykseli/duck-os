@@ -258,6 +258,36 @@ int setup_real_mode(struct vm* vm, struct executable* exec)
     return 0;
 }
 
+int setup_bios(struct vm* vm)
+{
+    /*
+        mov ax, 0x0
+        ; 0x021 is valid, 0x020 is unused
+        out 0x021, ax
+        iret
+    */
+    const uint8_t bios_code[] = {
+        0xb8,
+        0x0,
+        0x0,
+        0xe7,
+        0x21,
+        0xcf
+    };
+
+    // TODO: figure a right place for each bios interrupt callback
+    // 0xf000 puts the farpointer offset to 0xf0000 which is mapped to "System BIOS"
+    // we don't do anything with that address space so we can freely map stuff there
+    uint32_t far_pointer = (0xf000 << 16) | 0x1234;
+    memcpy(vm->shared_memory + 0xf1234, bios_code, sizeof(bios_code));
+    // save interrupt 0x13.
+    // interrupt descriptor table / interrupt vector table  is 4 bytes per
+    // each 4 bytes is a far poiter
+    memcpy(vm->shared_memory + (0x13 * 4), &far_pointer, sizeof(uint32_t));
+
+    return 0;
+}
+
 int run_vm(struct vm* vm)
 {
     while (1) {
@@ -302,6 +332,10 @@ int main(int argc, char** argv)
     }
 
     if ((ret = setup_real_mode(&vm, &exec)) != 0) {
+        goto main_end;
+    }
+
+    if ((ret = setup_bios(&vm)) != 0) {
         goto main_end;
     }
 
