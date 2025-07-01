@@ -24,6 +24,10 @@ int kvm_error(const char* pmsg, const char* efmt, ...)
     if (pmsg != NULL)
         perror(pmsg);
 
+    if (errno == 0) {
+        return 1;
+    }
+
     return errno;
 }
 
