@@ -53,6 +53,8 @@ struct vm {
     int vcpu_fd;
     struct kvm_run* kvm_run;
     size_t kvm_run_size;
+
+    struct executable* exec;
 };
 
 void vm_init(struct vm* vm)
@@ -261,6 +263,7 @@ int setup_real_mode(struct vm* vm, struct executable* exec)
         return kvm_error("KVM_SET_SREGS", NULL);
     }
 
+    vm->exec = exec;
     // load the executable to memory
     memcpy(vm->shared_memory + 0x7c00, exec->data, 512);
     return 0;
@@ -292,6 +295,44 @@ int setup_bios(struct vm* vm)
     return 0;
 }
 
+// TODO: bios functions should be put somewhere else
+int bios_read(struct vm* vm)
+{
+    struct kvm_regs regs;
+    if (ioctl(vm->vcpu_fd, KVM_GET_REGS, &regs) < 0) {
+        return kvm_error("KVM_GET_REGS", NULL);
+    }
+
+    // mode = 0x2 read from disk
+    uint8_t al = regs.rax & 0xff;
+    // number of 512 bytes sectors (to be read)
+    uint8_t ah = (regs.rax >> 8) & 0xff;
+    // memory address, (ignoring es for now)
+    uint16_t bx = regs.rbx;
+    // sector: 0x1 boot loader, 0x2 start of kernel
+    uint8_t cl = regs.rcx & 0xff;
+    // cylinder, don't matter to us?
+    uint8_t ch = (regs.rcx >> 8) & 0xff;
+    // drive number, we can ignore this
+    uint8_t dl = regs.rdx & 0xff;
+    // head number
+    uint8_t dh = (regs.rdx >> 8) & 0xff;
+
+    if (al != 0x2)
+        return kvm_error(NULL, "Only BIOS read (0x02) is supported\n");
+
+    struct executable kernel;
+    kernel.data = vm->exec->data + (512 * (cl - 1));
+    kernel.size = vm->exec->size - (512 * (cl - 1));
+
+    int read_size = 512 * ah;
+    if (kernel.size < read_size)
+        read_size = kernel.size;
+
+    memcpy(vm->shared_memory + bx, kernel.data, read_size);
+    return 0;
+}
+
 int run_vm(struct vm* vm)
 {
     while (1) {
@@ -305,6 +346,11 @@ int run_vm(struct vm* vm)
         case KVM_EXIT_IO:
             printf("IO port: %x, data: %x\n", vm->kvm_run->io.port,
                 *(int*)((char*)(vm->kvm_run) + vm->kvm_run->io.data_offset));
+            if (vm->kvm_run->io.port == 0x21) {
+                int ret = bios_read(vm);
+                if (ret != 0)
+                    return ret;
+            }
             break;
         default:
             return kvm_error(NULL, "Got expected KVM_EXIT_HLT (%d)\n", vm->kvm_run->exit_reason);
