@@ -269,15 +269,11 @@ int setup_real_mode(struct vm* vm, struct executable* exec)
 int setup_bios(struct vm* vm)
 {
     /*
-        mov ax, 0x0
         ; 0x021 is valid, 0x020 is unused
         out 0x021, ax
         iret
     */
     const uint8_t bios_code[] = {
-        0xb8,
-        0x0,
-        0x0,
         0xe7,
         0x21,
         0xcf
