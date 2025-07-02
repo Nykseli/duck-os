@@ -231,6 +231,10 @@ int read_executable(struct executable* exec, const char* filename)
 
 int setup_real_mode(struct vm* vm, struct executable* exec)
 {
+    if (exec->size < 512) {
+        return kvm_error(NULL, "Cannot load MBR from executable\nNeeds to be at least 512 bytes, was: %d\n", exec->size);
+    }
+
     struct kvm_regs regs;
     // make sure all registers are 0
     memset(&regs, 0, sizeof(regs));
@@ -258,7 +262,7 @@ int setup_real_mode(struct vm* vm, struct executable* exec)
     }
 
     // load the executable to memory
-    memcpy(vm->shared_memory + 0x7c00, exec->data, exec->size);
+    memcpy(vm->shared_memory + 0x7c00, exec->data, 512);
     return 0;
 }
 
