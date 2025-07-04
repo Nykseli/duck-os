@@ -1,0 +1,7 @@
+#ifndef _KERNEL_VGA_H_
+#define _KERNEL_VGA_H_
+
+void clear_screen();
+void print_string(char* string);
+
+#endif
