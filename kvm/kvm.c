@@ -270,9 +270,9 @@ int bios_read(struct vm* vm)
         return kvm_error("KVM_GET_REGS", NULL);
     }
 
-    // mode = 0x2 read from disk
-    uint8_t al = regs.rax & 0xff;
     // number of 512 bytes sectors (to be read)
+    uint8_t al = regs.rax & 0xff;
+    // mode = 0x2 read from disk
     uint8_t ah = (regs.rax >> 8) & 0xff;
     // memory address, (ignoring es for now)
     uint16_t bx = regs.rbx;
@@ -285,7 +285,7 @@ int bios_read(struct vm* vm)
     // head number
     uint8_t dh = (regs.rdx >> 8) & 0xff;
 
-    if (al != 0x2)
+    if (ah != 0x2)
         return kvm_error(NULL, "Only BIOS read (0x02) is supported\n");
 
     struct executable kernel;
