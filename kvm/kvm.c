@@ -1,16 +1,15 @@
 #include <errno.h>
 #include <fcntl.h>
-#include <linux/kvm.h>
 #include <stdarg.h>
 #include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <unistd.h>
+
+#include "kvm.h"
 
 int kvm_error(const char* pmsg, const char* efmt, ...)
 {
@@ -30,32 +29,6 @@ int kvm_error(const char* pmsg, const char* efmt, ...)
 
     return errno;
 }
-
-struct vm {
-    /**
-     * fd for /dev/kvm
-     */
-    int kvm_fd;
-    /**
-     * fd for KVM_CREATE_VM
-     */
-    int vm_fd;
-
-    /**
-     * Shared memory between KVM and userspace
-     */
-    void* shared_memory;
-    size_t shared_memory_size;
-
-    /**
-     * fd for KVM_CREATE_VCPU
-     */
-    int vcpu_fd;
-    struct kvm_run* kvm_run;
-    size_t kvm_run_size;
-
-    struct executable* exec;
-};
 
 void vm_init(struct vm* vm)
 {
@@ -188,11 +161,6 @@ int vm_create(struct vm* vm)
     return 0;
 }
 
-struct executable {
-    uint8_t* data;
-    size_t size;
-};
-
 void executable_init(struct executable* exec)
 {
     exec->data = NULL;
@@ -231,10 +199,10 @@ int read_executable(struct executable* exec, const char* filename)
     return 0;
 }
 
-int setup_real_mode(struct vm* vm, struct executable* exec)
+int setup_real_mode(struct vm* vm)
 {
-    if (exec->size < 512) {
-        return kvm_error(NULL, "Cannot load MBR from executable\nNeeds to be at least 512 bytes, was: %d\n", exec->size);
+    if (vm->exec.size < 512) {
+        return kvm_error(NULL, "Cannot load MBR from executable\nNeeds to be at least 512 bytes, was: %d\n", vm->exec.size);
     }
 
     struct kvm_regs regs;
@@ -263,9 +231,8 @@ int setup_real_mode(struct vm* vm, struct executable* exec)
         return kvm_error("KVM_SET_SREGS", NULL);
     }
 
-    vm->exec = exec;
     // load the executable to memory
-    memcpy(vm->shared_memory + 0x7c00, exec->data, 512);
+    memcpy(vm->shared_memory + 0x7c00, vm->exec.data, 512);
     return 0;
 }
 
@@ -322,8 +289,8 @@ int bios_read(struct vm* vm)
         return kvm_error(NULL, "Only BIOS read (0x02) is supported\n");
 
     struct executable kernel;
-    kernel.data = vm->exec->data + (512 * (cl - 1));
-    kernel.size = vm->exec->size - (512 * (cl - 1));
+    kernel.data = vm->exec.data + (512 * (cl - 1));
+    kernel.size = vm->exec.size - (512 * (cl - 1));
 
     int read_size = 512 * ah;
     if (kernel.size < read_size)
@@ -360,41 +327,44 @@ int run_vm(struct vm* vm)
     return 0;
 }
 
-int main(int argc, char** argv)
+int kvm_vm_setup(struct vm* vm, const char* exec_file)
 {
-    if (argc < 2) {
-        printf("Give executable as an argument\n");
-        return 1;
-    }
-
     int ret = 0;
-    struct vm vm;
-    struct executable exec;
-    vm_init(&vm);
-    executable_init(&exec);
+    vm_init(vm);
+    executable_init(&vm->exec);
 
-    if ((ret = vm_create(&vm)) != 0) {
-        goto main_end;
+    if ((ret = vm_create(vm)) != 0) {
+        return ret;
     }
 
-    if ((ret = read_executable(&exec, argv[1])) != 0) {
-        goto main_end;
+    if ((ret = read_executable(&vm->exec, exec_file)) != 0) {
+        return ret;
     }
 
-    if ((ret = setup_real_mode(&vm, &exec)) != 0) {
-        goto main_end;
+    if ((ret = setup_real_mode(vm)) != 0) {
+        return ret;
     }
 
-    if ((ret = setup_bios(&vm)) != 0) {
-        goto main_end;
+    if ((ret = setup_bios(vm)) != 0) {
+        return ret;
     }
 
-    if ((ret = run_vm(&vm)) != 0) {
-        goto main_end;
-    }
-
-main_end:
-    vm_free(&vm);
-    executable_free(&exec);
     return ret;
+}
+
+int kvm_vm_free(struct vm* vm)
+{
+    vm_free(vm);
+    executable_free(&vm->exec);
+    return 0;
+}
+
+int kvm_vm_run(struct vm* vm)
+{
+    int ret = 0;
+    if ((ret = run_vm(vm)) != 0) {
+        return ret;
+    }
+
+    return 0;
 }
