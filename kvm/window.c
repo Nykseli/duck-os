@@ -1,10 +1,8 @@
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
 #include <string.h>
+
+#include "window.h"
 
 #define MAX_ROWS 25
 #define MAX_COLS 80
@@ -77,23 +75,20 @@ void set_character(SDL_Renderer* renderer, struct vga_char* vgac, TTF_Font* font
     SDL_FreeSurface(surface);
 }
 
-int main(int argc, char** argv)
+int kvm_window_init(struct kvm_window* window)
 {
-    SDL_Renderer* renderer;
-    SDL_Window* window;
-
     /* Inint TTF. */
     SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO);
     TTF_Init();
-    TTF_Font* font = TTF_OpenFont("test_font.ttf", 24);
-    if (font == NULL) {
+    window->font = TTF_OpenFont("test_font.ttf", 24);
+    if (window->font == NULL) {
         fprintf(stderr, "error: font not found\n");
-        exit(EXIT_FAILURE);
+        return 1;
     }
 
     struct chara chara;
-    get_font_dimensions(&chara, font);
-    SDL_CreateWindowAndRenderer(chara.width * (MAX_COLS + 1), chara.height * (MAX_ROWS + 1), 0, &window, &renderer);
+    get_font_dimensions(&chara, window->font);
+    SDL_CreateWindowAndRenderer(chara.width * (MAX_COLS + 1), chara.height * (MAX_ROWS + 1), 0, &window->window, &window->renderer);
 
     for (int row = 0; row < MAX_ROWS; row++) {
         for (int col = 0; col < MAX_COLS; col++) {
@@ -101,31 +96,14 @@ int main(int argc, char** argv)
             char c = (val % 10) + '0';
             vga_char_init(&vga_sdl[row][col]);
             vga_sdl[row][col].character = c;
-            set_character(renderer, &vga_sdl[row][col], font, col, row);
+            set_character(window->renderer, &vga_sdl[row][col], window->font, col, row);
         }
     }
+    return 0;
+}
 
-    int quit = 0;
-    SDL_Event event;
-    while (!quit) {
-        while (SDL_PollEvent(&event) == 1) {
-            if (event.type == SDL_QUIT) {
-                quit = 1;
-            }
-        }
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-        SDL_RenderClear(renderer);
-
-        for (int row = 0; row < MAX_ROWS; row++) {
-            for (int col = 0; col < MAX_COLS; col++) {
-                SDL_RenderCopy(renderer, vga_sdl[row][col].texture, NULL, &vga_sdl[row][col].rect);
-            }
-        }
-
-        SDL_RenderPresent(renderer);
-        SDL_Delay(33);
-    }
-
+int kvm_window_free(struct kvm_window* window)
+{
     for (int row = 0; row < MAX_ROWS; row++) {
         for (int col = 0; col < MAX_COLS; col++) {
             vga_char_free(&vga_sdl[row][col]);
@@ -134,8 +112,34 @@ int main(int argc, char** argv)
 
     TTF_Quit();
 
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
+    SDL_DestroyRenderer(window->renderer);
+    SDL_DestroyWindow(window->window);
     SDL_Quit();
-    return EXIT_SUCCESS;
+    return 0;
+}
+
+int kvm_window_run(struct kvm_window* window)
+{
+    int quit = 0;
+    SDL_Event event;
+    while (!quit) {
+        while (SDL_PollEvent(&event) == 1) {
+            if (event.type == SDL_QUIT) {
+                quit = 1;
+            }
+        }
+        SDL_SetRenderDrawColor(window->renderer, 0, 0, 0, 0);
+        SDL_RenderClear(window->renderer);
+
+        for (int row = 0; row < MAX_ROWS; row++) {
+            for (int col = 0; col < MAX_COLS; col++) {
+                SDL_RenderCopy(window->renderer, vga_sdl[row][col].texture, NULL, &vga_sdl[row][col].rect);
+            }
+        }
+
+        SDL_RenderPresent(window->renderer);
+        SDL_Delay(33);
+    }
+
+    return 0;
 }
