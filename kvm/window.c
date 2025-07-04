@@ -75,8 +75,9 @@ void set_character(SDL_Renderer* renderer, struct vga_char* vgac, TTF_Font* font
     SDL_FreeSurface(surface);
 }
 
-int kvm_window_init(struct kvm_window* window)
+int kvm_window_init(struct kvm_window* window, struct vm* vm)
 {
+    window->vm = vm;
     /* Inint TTF. */
     SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO);
     TTF_Init();
@@ -118,6 +119,21 @@ int kvm_window_free(struct kvm_window* window)
     return 0;
 }
 
+void read_vga_memory(struct kvm_window* window)
+{
+    // TODO: color
+    for (int row = 0; row < MAX_ROWS; row++) {
+        for (int col = 0; col < MAX_COLS; col++) {
+            int offset = (row * MAX_COLS + col) * 2;
+            char ch = *(char*)(window->vm->shared_memory + 0xb8000 + offset);
+            if (ch != 0 && vga_sdl[row][col].character != ch) {
+                vga_sdl[row][col].character = ch;
+                set_character(window->renderer, &vga_sdl[row][col], window->font, col, row);
+            }
+        }
+    }
+}
+
 int kvm_window_run(struct kvm_window* window)
 {
     int quit = 0;
@@ -130,6 +146,7 @@ int kvm_window_run(struct kvm_window* window)
         }
         SDL_SetRenderDrawColor(window->renderer, 0, 0, 0, 0);
         SDL_RenderClear(window->renderer);
+        read_vga_memory(window);
 
         for (int row = 0; row < MAX_ROWS; row++) {
             for (int col = 0; col < MAX_COLS; col++) {

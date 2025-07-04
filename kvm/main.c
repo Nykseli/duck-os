@@ -28,7 +28,7 @@ int main(int argc, const char* argv[])
     struct kvm_window window;
     pthread_t kvm_thead;
 
-    if ((ret = kvm_window_init(&window)) != 0)
+    if ((ret = kvm_window_init(&window, &vm)) != 0)
         goto main_end;
     if ((ret = kvm_vm_setup(&vm, argv[1])) != 0)
         goto main_end;
