@@ -1,28 +1,50 @@
+# $@ = target file
+# $< = first dependency
+# $^ = all dependencies
+
+# detect all .o files based on their .c source
+C_SOURCES = $(wildcard kernel/*.c drivers/*.c)
+HEADERS = $(wildcard kernel/*.h  drivers/*.h)
+OBJ_FILES = ${C_SOURCES:.c=.o}
+
+# First rule is the one executed when no parameters are fed to the Makefile
 all: run
 
-kernel.bin: kernel_entry.o kernel.o
+# Notice how dependencies are built as needed
+kernel.bin: boot/kernel_entry.o ${OBJ_FILES}
 	i686-elf-ld -m elf_i386 -o $@ -Ttext 0x1000 $^ --oformat binary
 
-kernel_entry.o: kernel_entry.asm
-	nasm $< -f elf -o $@
-
-kernel.o: kernel.c
-	i686-elf-gcc -m32 -ffreestanding -c $< -o $@ -fno-PIC
-
-kernel.dis: kernel.bin
-	ndisasm -b 32 $< > $@
-
-mbr.bin: mbr.asm
-	nasm $< -f bin -o $@
-
-os-image.bin: mbr.bin kernel.bin
+os-image.bin: boot/mbr.bin kernel.bin
 	cat $^ > $@
 
 run: os-image.bin
-	qemu-system-i386 -monitor stdio -fda $<
+	qemu-system-i386 -fda $<
 
 echo: os-image.bin
 	xxd $<
 
+# only for debug
+kernel.elf: boot/kernel_entry.o ${OBJ_FILES}
+	i686-elf-ld -m elf_i386 -o $@ -Ttext 0x1000 $^ -fno-PIC
+
+debug: os-image.bin kernel.elf
+	qemu-system-i386 -s -S -fda os-image.bin &
+	i386-elf-gdb -ex "target remote localhost:1234" -ex "symbol-file kernel.elf"
+
+%.o: %.c ${HEADERS}
+	i686-elf-gcc -g -m32 -ffreestanding -c $< -o $@ # -g for debugging
+
+%.o: %.asm
+	nasm $< -f elf -o $@
+
+%.bin: %.asm
+	nasm $< -f bin -o $@
+
+%.dis: %.bin
+	ndisasm -b 32 $< > $@
+
 clean:
-	$(RM) *.bin *.o *.dis
+	$(RM) *.bin *.o *.dis *.elf
+	$(RM) kernel/*.o
+	$(RM) boot/*.o boot/*.bin
+	$(RM) drivers/*.o
