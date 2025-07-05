@@ -39,6 +39,7 @@ void vm_init(struct vm* vm)
     vm->kvm_fd = -1;
     vm->vm_fd = -1;
     vm->vcpu_fd = -1;
+    vm->vga.cursor_location = 0;
 }
 
 void vm_free(struct vm* vm)
@@ -300,8 +301,53 @@ int bios_read(struct vm* vm)
     return 0;
 }
 
+int vga_cntl_register(struct vm* vm)
+{
+    uint8_t* reg = (uint8_t*)vm->shared_memory + VGA_CTRL_REGISTER;
+    uint8_t io_value = *(uint8_t*)((void*)(vm->kvm_run) + vm->kvm_run->io.data_offset);
+
+    if (vm->kvm_run->io.direction != KVM_EXIT_IO_OUT)
+        return kvm_error(NULL, "Only OUT io direction is supported for VGA_CTRL_REGISTER\n");
+
+    if (io_value != VGA_OFFSET_HIGH && io_value != VGA_OFFSET_LOW)
+        return kvm_error(NULL, "Only cursor location registers are supported for CRT ports\n");
+
+    // probably not the best idea to save the value to the memory location itself
+    // but it shouldn't be used for anything else currently so we should be able to get away with it
+    *reg = io_value;
+
+    return 0;
+}
+
+int vga_data_register(struct vm* vm)
+{
+    uint8_t ctrl_val = *((uint8_t*)vm->shared_memory + VGA_CTRL_REGISTER);
+    uint8_t* io_data = (uint8_t*)((void*)(vm->kvm_run) + vm->kvm_run->io.data_offset);
+
+    if (ctrl_val != VGA_OFFSET_HIGH && ctrl_val != VGA_OFFSET_LOW)
+        return kvm_error(NULL, "VGA cntrl register needs to be set to high or low, was 0x%02x\n", ctrl_val);
+
+    if (vm->kvm_run->io.direction == KVM_EXIT_IO_OUT) {
+        if (ctrl_val == VGA_OFFSET_HIGH)
+            vm->vga.cursor_location = (vm->vga.cursor_location & 0x00ff) | ((uint16_t)*io_data << 8);
+        else
+            vm->vga.cursor_location = (vm->vga.cursor_location & 0xff00) | *io_data;
+    } else {
+        uint8_t in_value;
+        if (ctrl_val == VGA_OFFSET_HIGH)
+            in_value = vm->vga.cursor_location >> 8;
+        else
+            in_value = vm->vga.cursor_location & 0xff;
+
+        *io_data = in_value;
+    }
+
+    return 0;
+}
+
 int run_vm(struct vm* vm)
 {
+    int ret;
     while (1) {
         if (ioctl(vm->vcpu_fd, KVM_RUN, 0) < 0)
             return kvm_error("KVM_RUN", NULL);
@@ -314,8 +360,14 @@ int run_vm(struct vm* vm)
             printf("IO port: %x, data: %x\n", vm->kvm_run->io.port,
                 *(int*)((char*)(vm->kvm_run) + vm->kvm_run->io.data_offset));
             if (vm->kvm_run->io.port == 0x21) {
-                int ret = bios_read(vm);
+                ret = bios_read(vm);
                 if (ret != 0)
+                    return ret;
+            } else if (vm->kvm_run->io.port == VGA_CTRL_REGISTER) {
+                if ((ret = vga_cntl_register(vm)) != 0)
+                    return ret;
+            } else if (vm->kvm_run->io.port == VGA_DATA_REGISTER) {
+                if ((ret = vga_data_register(vm)) != 0)
                     return ret;
             }
             break;
