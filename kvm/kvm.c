@@ -292,7 +292,7 @@ int bios_read(struct vm* vm)
     kernel.data = vm->exec.data + (512 * (cl - 1));
     kernel.size = vm->exec.size - (512 * (cl - 1));
 
-    int read_size = 512 * ah;
+    int read_size = 512 * al;
     if (kernel.size < read_size)
         read_size = kernel.size;
 
