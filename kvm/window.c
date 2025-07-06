@@ -7,6 +7,64 @@
 #define MAX_ROWS 25
 #define MAX_COLS 80
 
+#define VGA_BLACK 0x0
+#define VGA_BLUE 0x1
+#define VGA_GREEN 0x2
+#define VGA_CYAN 0x3
+#define VGA_RED 0x4
+#define VGA_MAGENTA 0x5
+#define VGA_BROWN 0x6
+#define VGA_LIGHT_GRAY 0x7
+#define VGA_DARK_GRAY 0x8
+#define VGA_LIGHT_BLUE 0x9
+#define VGA_LIGHT_GREEN 0xa
+#define VGA_LIGHT_CYAN 0xb
+#define VGA_LIGHT_RED 0xc
+#define VGA_LIGHT_MAGENTA 0xd
+#define VGA_YELLOW 0xe
+#define VGA_WHITE 0xf
+
+SDL_Color vga_color_to_sdl(uint8_t color)
+{
+    // colors are from: https://en.wikipedia.org/wiki/BIOS_color_attributes
+    switch (color) {
+        case VGA_BLACK:
+            return(SDL_Color) { 0, 0, 0, 0 };
+        case VGA_BLUE:
+            return (SDL_Color) { 0, 0, 0xaa, 0 };
+        case VGA_GREEN:
+            return (SDL_Color) { 0, 0xaa, 0, 0 };
+        case VGA_CYAN:
+            return (SDL_Color) { 0, 0xaa, 0xaa, 0 };
+        case VGA_RED:
+            return (SDL_Color) { 0xaa, 0, 0, 0 };
+        case VGA_MAGENTA:
+            return (SDL_Color) { 0xaa, 0, 0xaa, 0 };
+        case VGA_BROWN:
+            return (SDL_Color) { 0xaa, 0x55, 0, 0 };
+        case VGA_LIGHT_GRAY:
+            return (SDL_Color) { 0xaa, 0xaa, 0xaa, 0 };
+        case VGA_DARK_GRAY:
+            return (SDL_Color) { 0x55, 0x55, 0x55, 0 };
+        case VGA_LIGHT_BLUE:
+            return (SDL_Color) { 0x55, 0x55, 0xff, 0 };
+        case VGA_LIGHT_GREEN:
+            return (SDL_Color) { 0x55, 0xff, 0x55, 0 };
+        case VGA_LIGHT_CYAN:
+            return (SDL_Color) { 0x55, 0xff, 0xff, 0 };
+        case VGA_LIGHT_RED:
+            return (SDL_Color) { 0xff, 0x55, 0x55, 0 };
+        case VGA_LIGHT_MAGENTA:
+            return (SDL_Color) { 0xff, 0x55, 0xff, 0 };
+        case VGA_YELLOW:
+            return (SDL_Color) { 0xff, 0xff, 0x55, 0 };
+        case VGA_WHITE:
+            return (SDL_Color) { 0xff, 0xff, 0xff, 0 };
+    }
+
+    return (SDL_Color) { 0, 0, 0, 0 };
+}
+
 struct vga_char {
     SDL_Texture* texture;
 
@@ -60,8 +118,8 @@ void set_character(SDL_Renderer* renderer, struct vga_char* vgac, TTF_Font* font
         0,
     };
 
-    SDL_Color fgColor = { 255, 255, 255, 0 };
-    SDL_Color bgColor = { 255, 0, 0, 0 };
+    SDL_Color fgColor = vga_color_to_sdl(vgac->fg_color);
+    SDL_Color bgColor = vga_color_to_sdl(vgac->bg_color);
 
     if (vgac->texture != NULL) {
         SDL_DestroyTexture(vgac->texture);
@@ -121,14 +179,20 @@ int kvm_window_free(struct kvm_window* window)
 
 void read_vga_memory(struct kvm_window* window)
 {
-    // TODO: color
     for (int row = 0; row < MAX_ROWS; row++) {
         for (int col = 0; col < MAX_COLS; col++) {
             int offset = (row * MAX_COLS + col) * 2;
             char ch = *(char*)(window->vm->shared_memory + 0xb8000 + offset);
-            if (ch != 0 && vga_sdl[row][col].character != ch) {
-                vga_sdl[row][col].character = ch;
-                set_character(window->renderer, &vga_sdl[row][col], window->font, col, row);
+            uint8_t color = *(uint8_t*)(window->vm->shared_memory + 0xb8000 + offset + 1);
+            uint8_t bg = color >> 4;
+            uint8_t fg = color & 0x0f;
+
+            struct vga_char* vchar = &vga_sdl[row][col];
+            if (ch != 0 && (vchar->character != ch || fg != vchar->fg_color || bg != vchar->bg_color)) {
+                vchar->bg_color = bg;
+                vchar->fg_color = fg;
+                vchar->character = ch;
+                set_character(window->renderer, vchar, window->font, col, row);
             }
         }
     }
