@@ -76,6 +76,9 @@ struct vga_char {
 
 struct vga_char vga_sdl[MAX_ROWS][MAX_COLS];
 
+int font_width = 0;
+int font_height = 0;
+
 void vga_char_init(struct vga_char* vga_char)
 {
     vga_char->texture = NULL;
@@ -85,8 +88,8 @@ void vga_char_init(struct vga_char* vga_char)
     vga_char->rect.x = 0;
     vga_char->rect.y = 0;
     // TODO: get h and w from actual render
-    vga_char->rect.h = 32;
-    vga_char->rect.w = 14;
+    vga_char->rect.h = font_height;
+    vga_char->rect.w = font_width;
 }
 
 void vga_char_free(struct vga_char* vga_char)
@@ -96,18 +99,14 @@ void vga_char_free(struct vga_char* vga_char)
     vga_char_init(vga_char);
 }
 
-struct chara {
-    int width;
-    int height;
-};
-
-void get_font_dimensions(struct chara* chara, TTF_Font* font)
+void get_font_dimensions(TTF_Font* font)
 {
     SDL_Color tmpColor = { 0, 0, 0, 0 };
     // Create a single char temporarily to calculate our dimensions
     SDL_Surface* surface = TTF_RenderUTF8_Solid(font, "O", tmpColor);
-    chara->width = surface->w;
-    chara->height = surface->h;
+    font_width = surface->w;
+    font_height = surface->h;
+
     SDL_FreeSurface(surface);
 }
 
@@ -145,9 +144,8 @@ int kvm_window_init(struct kvm_window* window, struct vm* vm)
         return 1;
     }
 
-    struct chara chara;
-    get_font_dimensions(&chara, window->font);
-    SDL_CreateWindowAndRenderer(chara.width * (MAX_COLS + 1), chara.height * (MAX_ROWS + 1), 0, &window->window, &window->renderer);
+    get_font_dimensions(window->font);
+    SDL_CreateWindowAndRenderer(font_width * (MAX_COLS + 1), font_height * (MAX_ROWS + 1), 0, &window->window, &window->renderer);
 
     for (int row = 0; row < MAX_ROWS; row++) {
         for (int col = 0; col < MAX_COLS; col++) {
