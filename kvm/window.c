@@ -139,7 +139,7 @@ int kvm_window_init(struct kvm_window* window, struct vm* vm)
     /* Inint TTF. */
     SDL_Init(SDL_INIT_TIMER | SDL_INIT_VIDEO);
     TTF_Init();
-    window->font = TTF_OpenFont("test_font.ttf", 24);
+    window->font = TTF_OpenFont("font/DroidSansMono.ttf", 24);
     if (window->font == NULL) {
         fprintf(stderr, "error: font not found\n");
         return 1;
