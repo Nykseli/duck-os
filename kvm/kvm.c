@@ -240,13 +240,13 @@ int setup_real_mode(struct vm* vm)
 int setup_bios(struct vm* vm)
 {
     /*
-        ; 0x021 is valid, 0x020 is unused
-        out 0x021, ax
+        ; 0x011 is valid, 0x010 is unused
+        out 0x011, ax
         iret
     */
     const uint8_t bios_code[] = {
         0xe7,
-        0x21,
+        0x11,
         0xcf
     };
 
@@ -359,7 +359,7 @@ int run_vm(struct vm* vm)
         case KVM_EXIT_IO:
             printf("IO port: %x, data: %x\n", vm->kvm_run->io.port,
                 *(int*)((char*)(vm->kvm_run) + vm->kvm_run->io.data_offset));
-            if (vm->kvm_run->io.port == 0x21) {
+            if (vm->kvm_run->io.port == 0x11) {
                 ret = bios_read(vm);
                 if (ret != 0)
                     return ret;
