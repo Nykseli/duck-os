@@ -3,9 +3,9 @@
 # $^ = all dependencies
 
 # detect all .o files based on their .c source
-C_SOURCES = $(wildcard kernel/*.c drivers/*.c)
-HEADERS = $(wildcard kernel/*.h  drivers/*.h)
-OBJ_FILES = ${C_SOURCES:.c=.o}
+C_SOURCES = $(wildcard kernel/*.c drivers/*.c cpu/*.c)
+HEADERS = $(wildcard kernel/*.h  drivers/*.h cpu/*.h)
+OBJ_FILES = ${C_SOURCES:.c=.o cpu/interrupt.o}
 
 # First rule is the one executed when no parameters are fed to the Makefile
 all: run
@@ -48,3 +48,4 @@ clean:
 	$(RM) kernel/*.o
 	$(RM) boot/*.o boot/*.bin
 	$(RM) drivers/*.o
+	$(RM) cpu/*.o

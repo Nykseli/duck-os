@@ -1,6 +1,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "util.h"
+
 #define VGA_CTRL_REGISTER 0x3d4
 #define VGA_DATA_REGISTER 0x3d5
 #define VGA_OFFSET_LOW 0x0f
@@ -10,20 +12,6 @@
 #define MAX_ROWS 25
 #define MAX_COLS 80
 #define WHITE_ON_BLACK 0x0f
-
-// in instruction
-uint8_t port_byte_in(uint16_t port)
-{
-    uint8_t result;
-    __asm__("in %%dx, %%al" : "=a"(result) : "d"(port));
-    return result;
-}
-
-// out instruction
-void port_byte_out(uint16_t port, uint8_t data)
-{
-    __asm__("out %%al, %%dx" : : "a"(data), "d"(port));
-}
 
 void set_cursor(int offset)
 {
@@ -112,4 +100,13 @@ void clear_screen()
         set_char_at_video_memory(' ', idx * 2);
     }
     set_cursor(get_offset(0, 0));
+}
+
+void print_nl()
+{
+    int newOffset = move_offset_to_new_line(get_cursor());
+    if (newOffset >= MAX_ROWS * MAX_COLS * 2) {
+        newOffset = scroll_ln(newOffset);
+    }
+    set_cursor(newOffset);
 }

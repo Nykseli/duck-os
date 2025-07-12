@@ -3,5 +3,6 @@
 
 void clear_screen();
 void print_string(char* string);
+void print_nl();
 
 #endif
