@@ -202,8 +202,16 @@ int kvm_window_run(struct kvm_window* window)
     SDL_Event event;
     while (!quit) {
         while (SDL_PollEvent(&event) == 1) {
-            if (event.type == SDL_QUIT) {
+            switch (event.type) {
+            case SDL_QUIT:
                 quit = 1;
+                break;
+            case SDL_KEYDOWN:
+                event.key;
+                kvm_vm_interrupt(window->vm, 1);
+                break;
+            default:
+                break;
             }
         }
         SDL_SetRenderDrawColor(window->renderer, 0, 0, 0, 0);

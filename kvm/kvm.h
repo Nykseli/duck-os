@@ -54,5 +54,6 @@ struct vm {
 int kvm_vm_setup(struct vm* vm, const char* exec_file);
 int kvm_vm_free(struct vm* vm);
 int kvm_vm_run(struct vm* vm);
+int kvm_vm_interrupt(struct vm* vm, uint32_t irq);
 
 #endif

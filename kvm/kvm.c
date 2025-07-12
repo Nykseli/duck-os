@@ -369,8 +369,21 @@ int run_vm(struct vm* vm)
             } else if (vm->kvm_run->io.port == VGA_DATA_REGISTER) {
                 if ((ret = vga_data_register(vm)) != 0)
                     return ret;
+            } else if (vm->kvm_run->io.port == 0x60) {
+                uint8_t* io_data = (uint8_t*)((void*)(vm->kvm_run) + vm->kvm_run->io.data_offset);
+                *io_data = 0x1E;
             }
             break;
+        case KVM_EXIT_IRQ_WINDOW_OPEN: {
+            struct kvm_interrupt intr;
+            // TODO: get the offset mappings and set the irq to 1 on keyboard event
+            intr.irq = 33;
+            if (ioctl(vm->vcpu_fd, KVM_INTERRUPT, &intr) < 0) {
+                return kvm_error("KVM_INTERRUPT", NULL);
+            }
+            vm->kvm_run->request_interrupt_window = 0;
+            break;
+        }
         default:
             return kvm_error(NULL, "Got expected KVM_EXIT_HLT (%d)\n", vm->kvm_run->exit_reason);
         }
@@ -418,5 +431,11 @@ int kvm_vm_run(struct vm* vm)
         return ret;
     }
 
+    return 0;
+}
+
+int kvm_vm_interrupt(struct vm* vm, uint32_t irq)
+{
+    vm->kvm_run->request_interrupt_window = 1;
     return 0;
 }
