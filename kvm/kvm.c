@@ -40,6 +40,7 @@ void vm_init(struct vm* vm)
     vm->vm_fd = -1;
     vm->vcpu_fd = -1;
     vm->vga.cursor_location = 0;
+    vm->irq.irq = -1;
 }
 
 void vm_free(struct vm* vm)
@@ -371,13 +372,13 @@ int run_vm(struct vm* vm)
                     return ret;
             } else if (vm->kvm_run->io.port == 0x60) {
                 uint8_t* io_data = (uint8_t*)((void*)(vm->kvm_run) + vm->kvm_run->io.data_offset);
-                *io_data = 0x1E;
+                *io_data = vm->irq.data.keyboard.data;
             }
             break;
         case KVM_EXIT_IRQ_WINDOW_OPEN: {
             struct kvm_interrupt intr;
             // TODO: get the offset mappings and set the irq to 1 on keyboard event
-            intr.irq = 33;
+            intr.irq = vm->irq.irq;
             if (ioctl(vm->vcpu_fd, KVM_INTERRUPT, &intr) < 0) {
                 return kvm_error("KVM_INTERRUPT", NULL);
             }
@@ -437,5 +438,16 @@ int kvm_vm_run(struct vm* vm)
 int kvm_vm_interrupt(struct vm* vm, uint32_t irq)
 {
     vm->kvm_run->request_interrupt_window = 1;
+    return 0;
+}
+
+int kvm_vm_send_key(struct vm* vm, enum ps2_scan_code key, bool released)
+{
+    vm->kvm_run->request_interrupt_window = 1;
+    // TODO: set this based in the IRQ remapping
+    vm->irq.irq = 33;
+    vm->irq.data.keyboard.data = key;
+    if (released)
+        vm->irq.data.keyboard.data += 0x80;
     return 0;
 }

@@ -196,6 +196,87 @@ void read_vga_memory(struct kvm_window* window)
     }
 }
 
+enum ps2_scan_code sdlkey_to_ps2(SDL_Keycode code)
+{
+    switch (code) {
+    case SDLK_a:
+        return PS2_A;
+    case SDLK_b:
+        return PS2_B;
+    case SDLK_c:
+        return PS2_C;
+    case SDLK_d:
+        return PS2_D;
+    case SDLK_e:
+        return PS2_E;
+    case SDLK_f:
+        return PS2_F;
+    case SDLK_g:
+        return PS2_G;
+    case SDLK_h:
+        return PS2_H;
+    case SDLK_i:
+        return PS2_I;
+    case SDLK_j:
+        return PS2_J;
+    case SDLK_k:
+        return PS2_L;
+    case SDLK_l:
+        return PS2_L;
+    case SDLK_m:
+        return PS2_M;
+    case SDLK_n:
+        return PS2_N;
+    case SDLK_o:
+        return PS2_O;
+    case SDLK_p:
+        return PS2_P;
+    case SDLK_q:
+        return PS2_Q;
+    case SDLK_r:
+        return PS2_R;
+    case SDLK_s:
+        return PS2_S;
+    case SDLK_t:
+        return PS2_T;
+    case SDLK_u:
+        return PS2_U;
+    case SDLK_v:
+        return PS2_V;
+    case SDLK_w:
+        return PS2_W;
+    case SDLK_x:
+        return PS2_X;
+    case SDLK_y:
+        return PS2_Y;
+    case SDLK_z:
+        return PS2_Z;
+    case SDLK_0:
+        return PS2_Num_0;
+    case SDLK_1:
+        return PS2_Num_1;
+    case SDLK_2:
+        return PS2_Num_2;
+    case SDLK_3:
+        return PS2_Num_3;
+    case SDLK_4:
+        return PS2_Num_4;
+    case SDLK_5:
+        return PS2_Num_5;
+    case SDLK_6:
+        return PS2_Num_6;
+    case SDLK_7:
+        return PS2_Num_7;
+    case SDLK_8:
+        return PS2_Num_8;
+    case SDLK_9:
+        return PS2_Num_9;
+    default:
+        printf("Unmapped SDL key: '%c'\n", code);
+        return PS2_ERROR;
+    }
+};
+
 int kvm_window_run(struct kvm_window* window)
 {
     int quit = 0;
@@ -206,9 +287,11 @@ int kvm_window_run(struct kvm_window* window)
             case SDL_QUIT:
                 quit = 1;
                 break;
+            case SDL_KEYUP:
+                kvm_vm_send_key(window->vm, sdlkey_to_ps2(event.key.keysym.sym), true);
+                break;
             case SDL_KEYDOWN:
-                event.key;
-                kvm_vm_interrupt(window->vm, 1);
+                kvm_vm_send_key(window->vm, sdlkey_to_ps2(event.key.keysym.sym), false);
                 break;
             default:
                 break;
