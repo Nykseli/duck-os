@@ -275,6 +275,8 @@ enum ps2_scan_code sdlkey_to_ps2(SDL_Keycode code)
         return PS2_Backspace;
     case SDLK_RETURN:
         return PS2_ENTER;
+    case SDLK_SPACE:
+        return PS2_Space;
     default:
         printf("Unmapped SDL key: '0x%02x'\n", code);
         return PS2_ERROR;
