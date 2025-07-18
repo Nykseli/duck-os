@@ -28,38 +28,38 @@ SDL_Color vga_color_to_sdl(uint8_t color)
 {
     // colors are from: https://en.wikipedia.org/wiki/BIOS_color_attributes
     switch (color) {
-        case VGA_BLACK:
-            return(SDL_Color) { 0, 0, 0, 0 };
-        case VGA_BLUE:
-            return (SDL_Color) { 0, 0, 0xaa, 0 };
-        case VGA_GREEN:
-            return (SDL_Color) { 0, 0xaa, 0, 0 };
-        case VGA_CYAN:
-            return (SDL_Color) { 0, 0xaa, 0xaa, 0 };
-        case VGA_RED:
-            return (SDL_Color) { 0xaa, 0, 0, 0 };
-        case VGA_MAGENTA:
-            return (SDL_Color) { 0xaa, 0, 0xaa, 0 };
-        case VGA_BROWN:
-            return (SDL_Color) { 0xaa, 0x55, 0, 0 };
-        case VGA_LIGHT_GRAY:
-            return (SDL_Color) { 0xaa, 0xaa, 0xaa, 0 };
-        case VGA_DARK_GRAY:
-            return (SDL_Color) { 0x55, 0x55, 0x55, 0 };
-        case VGA_LIGHT_BLUE:
-            return (SDL_Color) { 0x55, 0x55, 0xff, 0 };
-        case VGA_LIGHT_GREEN:
-            return (SDL_Color) { 0x55, 0xff, 0x55, 0 };
-        case VGA_LIGHT_CYAN:
-            return (SDL_Color) { 0x55, 0xff, 0xff, 0 };
-        case VGA_LIGHT_RED:
-            return (SDL_Color) { 0xff, 0x55, 0x55, 0 };
-        case VGA_LIGHT_MAGENTA:
-            return (SDL_Color) { 0xff, 0x55, 0xff, 0 };
-        case VGA_YELLOW:
-            return (SDL_Color) { 0xff, 0xff, 0x55, 0 };
-        case VGA_WHITE:
-            return (SDL_Color) { 0xff, 0xff, 0xff, 0 };
+    case VGA_BLACK:
+        return (SDL_Color) { 0, 0, 0, 0 };
+    case VGA_BLUE:
+        return (SDL_Color) { 0, 0, 0xaa, 0 };
+    case VGA_GREEN:
+        return (SDL_Color) { 0, 0xaa, 0, 0 };
+    case VGA_CYAN:
+        return (SDL_Color) { 0, 0xaa, 0xaa, 0 };
+    case VGA_RED:
+        return (SDL_Color) { 0xaa, 0, 0, 0 };
+    case VGA_MAGENTA:
+        return (SDL_Color) { 0xaa, 0, 0xaa, 0 };
+    case VGA_BROWN:
+        return (SDL_Color) { 0xaa, 0x55, 0, 0 };
+    case VGA_LIGHT_GRAY:
+        return (SDL_Color) { 0xaa, 0xaa, 0xaa, 0 };
+    case VGA_DARK_GRAY:
+        return (SDL_Color) { 0x55, 0x55, 0x55, 0 };
+    case VGA_LIGHT_BLUE:
+        return (SDL_Color) { 0x55, 0x55, 0xff, 0 };
+    case VGA_LIGHT_GREEN:
+        return (SDL_Color) { 0x55, 0xff, 0x55, 0 };
+    case VGA_LIGHT_CYAN:
+        return (SDL_Color) { 0x55, 0xff, 0xff, 0 };
+    case VGA_LIGHT_RED:
+        return (SDL_Color) { 0xff, 0x55, 0x55, 0 };
+    case VGA_LIGHT_MAGENTA:
+        return (SDL_Color) { 0xff, 0x55, 0xff, 0 };
+    case VGA_YELLOW:
+        return (SDL_Color) { 0xff, 0xff, 0x55, 0 };
+    case VGA_WHITE:
+        return (SDL_Color) { 0xff, 0xff, 0xff, 0 };
     }
 
     return (SDL_Color) { 0, 0, 0, 0 };
@@ -271,8 +271,12 @@ enum ps2_scan_code sdlkey_to_ps2(SDL_Keycode code)
         return PS2_Num_8;
     case SDLK_9:
         return PS2_Num_9;
+    case SDLK_BACKSPACE:
+        return PS2_Backspace;
+    case SDLK_RETURN:
+        return PS2_ENTER;
     default:
-        printf("Unmapped SDL key: '%c'\n", code);
+        printf("Unmapped SDL key: '0x%02x'\n", code);
         return PS2_ERROR;
     }
 };
