@@ -49,6 +49,20 @@ void int_to_string(int n, char str[])
     reverse(str);
 }
 
+// TODO: handle negative
+int string_to_int(char str[])
+{
+    int ret = 0;
+
+    for (int idx = 0; str[idx]; idx++)
+    {
+        ret *= 10;
+        ret += str[idx] - '0';
+    }
+
+    return ret;
+}
+
 void append(char s[], char n)
 {
     int len = string_length(s);
@@ -76,5 +90,16 @@ int compare_string(char s1[], char s2[])
         if (s1[i] == '\0')
             return 0;
     }
+    return s1[i] - s2[i];
+}
+
+int string_starts_with(char s1[], char s2[])
+{
+    int i;
+    for (i = 0; s1[i] == s2[i] || s2[i] == '\0'; i++) {
+        if (s1[i] == '\0' || s2[i] == '\0')
+            return 0;
+    }
+
     return s1[i] - s2[i];
 }

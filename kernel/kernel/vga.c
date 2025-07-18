@@ -13,6 +13,28 @@
 #define MAX_COLS 80
 #define WHITE_ON_BLACK 0x0f
 
+int vga_color = WHITE_ON_BLACK;
+
+void recolor_screen()
+{
+    uint8_t* vidmem = (uint8_t*)VIDEO_ADDRESS;
+    for (int idx = 0; idx < MAX_COLS * MAX_ROWS; idx++) {
+        vidmem[idx * 2 + 1] = vga_color;
+    }
+}
+
+void set_bg_color(int bg)
+{
+    vga_color = (vga_color & 0x0f) | (bg << 4);
+    recolor_screen();
+}
+
+void set_fg_color(int fg)
+{
+    vga_color = (vga_color & 0xf0) | fg;
+    recolor_screen();
+}
+
 void set_cursor(int offset)
 {
     offset /= 2;
@@ -35,7 +57,7 @@ void set_char_at_video_memory(char character, int offset)
 {
     uint8_t* vidmem = (uint8_t*)VIDEO_ADDRESS;
     vidmem[offset] = character;
-    vidmem[offset + 1] = WHITE_ON_BLACK;
+    vidmem[offset + 1] = vga_color;
 }
 
 void memory_copy(char* source, char* dest, int nbytes)
@@ -111,7 +133,8 @@ void print_nl()
     set_cursor(newOffset);
 }
 
-void print_backspace() {
+void print_backspace()
+{
     int newCursor = get_cursor() - 2;
     set_char_at_video_memory(' ', newCursor);
     set_cursor(newCursor);

@@ -18,5 +18,7 @@ bool backspace(char s[]);
 /* K&R
  * Returns <0 if s1<s2, 0 if s1==s2, >0 if s1>s2 */
 int compare_string(char s1[], char s2[]);
+int string_starts_with(char s1[], char s2[]);
+int string_to_int(char str[]);
 
 #endif
