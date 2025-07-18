@@ -110,3 +110,9 @@ void print_nl()
     }
     set_cursor(newOffset);
 }
+
+void print_backspace() {
+    int newCursor = get_cursor() - 2;
+    set_char_at_video_memory(' ', newCursor);
+    set_cursor(newCursor);
+}

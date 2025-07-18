@@ -13,4 +13,6 @@ void main()
 
     print_string("Initializing keyboard (IRQ 1).\n");
     init_keyboard();
+
+    print_string("> ");
 }

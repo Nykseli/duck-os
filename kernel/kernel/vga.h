@@ -4,5 +4,6 @@
 void clear_screen();
 void print_string(char* string);
 void print_nl();
+void print_backspace();
 
 #endif
